@@ -102,7 +102,7 @@ def load_checkpoint(filepath, device, model, optimizer=None):
 # -----------------------------------------------------------------------------
 # Training Loop (STEPS-BASED)
 # -----------------------------------------------------------------------------
-def train(total_steps, ckpt_path, save_path, use_lr_schedule=True):
+def train(total_steps, ckpt_path, save_path, use_lr_schedule=True, log_interval=100):
     # Device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
