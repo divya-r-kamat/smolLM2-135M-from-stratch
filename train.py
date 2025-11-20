@@ -55,19 +55,29 @@ def save_checkpoint(model, optimizer, step, loss, filepath):
     print(f"\nCheckpoint saved: {filepath}")
 
 
-def load_checkpoint(filepath, model, optimizer):
-    ckpt = torch.load(filepath, map_location="cpu")
-    model.load_state_dict(ckpt["model_state_dict"])
+def load_checkpoint(filepath, model, optimizer=None):
+    """Load model checkpoint"""
+    checkpoint = torch.load(filepath, map_location=device, weights_only=False)
 
-    if optimizer:
-        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+    # Load model weights
+    model.load_state_dict(checkpoint['model_state_dict'])
 
-    print(f"\nCheckpoint loaded: {filepath}")
-    return ckpt["step"], ckpt["loss"]
+    # Load optimizer state
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        print("Optimizer state entries:", len(optimizer.state_dict()['state']))
+
+    step = checkpoint['step']
+    loss = checkpoint['loss']
+
+    print(f"\nCheckpoint loaded from {filepath}")
+    print(f"Resuming from loss {loss:.4f}\n")
+
+    return step, loss
 
 
 # -----------------------------------------------------------------------------
-# Training Loop
+# Training Loop: with TensorBoard + LR Scheduler + checkpoint every 1000 steps
 # -----------------------------------------------------------------------------
 def train_model(epochs, ckpt_path=None, save_path="checkpoint.pt"):
     # device
@@ -77,7 +87,6 @@ def train_model(epochs, ckpt_path=None, save_path="checkpoint.pt"):
         device = "mps"
     else:
         device = "cpu"
-
     print(f"Using device: {device}")
 
     torch.set_float32_matmul_precision("high")
@@ -106,6 +115,22 @@ def train_model(epochs, ckpt_path=None, save_path="checkpoint.pt"):
     # data loader
     train_loader = DataLoaderLite(B=4, T=256)
     steps_per_epoch = len(train_loader.tokens) // (train_loader.B * train_loader.T)
+    total_steps = epochs * steps_per_epoch
+
+    # -----------------------------
+    #  LR SCHEDULER
+    # -----------------------------
+    warmup_steps = int(total_steps * 0.03)   # 3% warmup
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=total_steps,
+    )
+
+    # -----------------------------
+    # TensorBoard
+    # -----------------------------
+    writer = SummaryWriter(log_dir="runs/smollm2_training")
 
     # load checkpoint if provided
     start_step = 0
@@ -115,12 +140,14 @@ def train_model(epochs, ckpt_path=None, save_path="checkpoint.pt"):
         start_step, last_loss = load_checkpoint(ckpt_path, model, optimizer)
         print(f"Resuming from step {start_step}, loss={last_loss}")
 
-    print(f"\nTraining for {epochs} epochs ({epochs * steps_per_epoch} steps total)\n")
+    print(f"\nTraining for {epochs} epochs ({total_steps} steps total)\n")
 
-    # training
+    epoch_log = []
     global_step = start_step
+
     for epoch in range(epochs):
-        print(f"--- Epoch {epoch+1}/{epochs} ---")
+        print(f"\n--- Epoch {epoch+1}/{epochs} ---")
+        epoch_loss_total = 0.0
 
         for _ in range(steps_per_epoch):
             t0 = time.time()
@@ -136,20 +163,57 @@ def train_model(epochs, ckpt_path=None, save_path="checkpoint.pt"):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
+            scheduler.step()  # <---- apply LR schedule
 
-            if device == "cuda":
-                torch.cuda.synchronize()
-
+            # throughput
             t1 = time.time()
             tok_per_sec = (train_loader.B * train_loader.T) / (t1 - t0)
 
+            # epoch accumulation
+            epoch_loss_total += loss.item()
+
+            # logging to TensorBoard every 20 steps
+            if global_step % 20 == 0:
+                writer.add_scalar("loss/train", loss.item(), global_step)
+                writer.add_scalar("lr", optimizer.param_groups[0]["lr"], global_step)
+                writer.add_scalar("throughput_tokens_per_sec", tok_per_sec, global_step)
+
+            # console print
             if global_step % 100 == 0:
-                print(f"step {global_step} | loss {loss.item():.4f} | tok/sec {tok_per_sec:.1f}")
+                print(
+                    f"step {global_step} "
+                    f"| loss {loss.item():.4f} "
+                    f"| lr {optimizer.param_groups[0]['lr']:.6f} "
+                    f"| tok/sec {tok_per_sec:.1f}"
+                )
+
+            # checkpoint every 1000 steps
+            if global_step % 1000 == 0:
+                ckpt_file = f"checkpoint_step_{global_step}.pt"
+                save_checkpoint(model, optimizer, global_step, loss.item(), ckpt_file)
 
             global_step += 1
 
-    print(f"\nFinal loss: {loss.item():.4f}")
+        # end of epoch
+        avg_loss = epoch_loss_total / steps_per_epoch
+        lr_now = optimizer.param_groups[0]["lr"]
+
+        epoch_log.append({"epoch": epoch + 1, "avg_loss": avg_loss, "lr": lr_now})
+
+        writer.add_scalar("epoch/avg_loss", avg_loss, epoch + 1)
+        writer.add_scalar("epoch/lr", lr_now, epoch + 1)
+
+        print(f"Epoch {epoch+1} complete | avg loss {avg_loss:.4f} | lr {lr_now:.6f}")
+
+    # save final checkpoint
     save_checkpoint(model, optimizer, global_step, loss.item(), save_path)
+
+    writer.close()
+
+    print("\n=== Training Summary (per epoch) ===")
+    for entry in epoch_log:
+        print(f"Epoch {entry['epoch']} | loss={entry['avg_loss']:.4f} | lr={entry['lr']:.6f}")
+
 
 
 # -----------------------------------------------------------------------------
