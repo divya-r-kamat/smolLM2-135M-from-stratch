@@ -195,6 +195,11 @@ def train(total_steps, ckpt_path, save_path, use_lr_schedule=True):
 
         if step % 100 == 0:
             print(f"step {step} | loss {loss.item():.4f} | lr {lr:.6f} | tok/s {tok_per_sec:8.1f}")
+        
+        # Save checkpoint every 1000 steps
+        if step % 1000 == 0 and step > 0:
+            ckpt_name = f"checkpoint_step_{step}.pt"
+            save_checkpoint(model, optimizer, step, loss.item(), ckpt_name, lr_config)
 
     print(f"\nFinal loss: {loss.item():.4f}")
     save_checkpoint(model, optimizer, total_steps, loss.item(), save_path, lr_config)
