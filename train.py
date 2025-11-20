@@ -193,7 +193,7 @@ def train(total_steps, ckpt_path, save_path, use_lr_schedule=True, log_interval=
         t1 = time.time()
         tok_per_sec = (loader.B * loader.T) / (t1 - t0)
 
-        if step % 100 == 0:
+        if step % log_interval == 0:
             print(f"step {step} | loss {loss.item():.4f} | lr {lr:.6f} | tok/s {tok_per_sec:8.1f}")
         
         # Save checkpoint every 1000 steps
@@ -219,6 +219,8 @@ if __name__ == "__main__":
                         help="Where to save final checkpoint")
     parser.add_argument("--no-lr-schedule", action="store_true",
                         help="Disable learning rate schedule (use fixed LR)")
+    parser.add_argument("--log-interval", type=int, default=100,
+                    help="How often to print training logs")
 
     args = parser.parse_args()
 
@@ -226,5 +228,6 @@ if __name__ == "__main__":
         total_steps=args.steps,
         ckpt_path=args.ckpt,
         save_path=args.save,
-        use_lr_schedule=not args.no_lr_schedule
+        use_lr_schedule=not args.no_lr_schedule,
+        log_interval=args.log_interval
     )
