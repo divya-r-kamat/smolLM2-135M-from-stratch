@@ -229,8 +229,7 @@ Trained from random initialization on Shakespeare's complete works (341,094 toke
       step 4700 | loss 1.4722 | lr 0.000032 | tok/s   2182.9
       step 4800 | loss 2.0765 | lr 0.000031 | tok/s   2166.9
       step 4900 | loss 1.9064 | lr 0.000030 | tok/s   2181.7
-      
-      Final loss: 2.0870
+      step 5000 | loss 1.9470 | lr 0.000030 | tok/s   2181.7
       
       Saved checkpoint: checkpoint.pt
 
@@ -244,7 +243,7 @@ Clear the cache and Resumed from checkpoint for 50 more steps:
         torch.cuda.reset_peak_memory_stats()
 
 
-- Continued from: Step 5000
+- Continued from: Step 5001
 - Additional steps: 50
 - Final loss: 1.53
 - Maintained LR schedule: 3e-5 (min LR from original schedule)
@@ -259,15 +258,15 @@ Clear the cache and Resumed from checkpoint for 50 more steps:
       Optimizer state entries: 272
       
       Checkpoint loaded from checkpoint.pt
-      Resuming from step 5000 | loss 2.0870
+      Resuming from step 5001 | loss 2.0870
       Original LR schedule: max_steps=5000
       Continuing with original LR schedule (original max_steps: 5000)
       
-      Training from step 5000 → 5050
+      Training from step 5001 → 5050
       LR schedule: enabled (max=0.0003, min=2.9999999999999997e-05)
       Using max_steps=5000 for LR calculation
       
-      step 5000 | loss 1.9662 | lr 0.000030 | tok/s    301.9
+      step 5001 | loss 1.9662 | lr 0.000030 | tok/s    301.9
       
       Saved checkpoint: checkpoint_step_5000.pt
       step 5005 | loss 1.7517 | lr 0.000030 | tok/s   2142.9
