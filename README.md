@@ -300,3 +300,9 @@ Where:
 6NT: Linear operations (embeddings, projections, MLP) 12LHdT²: Quadratic attention operations
 
 Total Flops: 220949544960
+
+
+## Demo
+You can try the trained model interactively on Hugging Face Spaces: 👉 https://huggingface.co/spaces/dkamat/gpt2-from-stratch
+
+<img width="1794" height="860" alt="image" src="https://github.com/user-attachments/assets/59c20a46-4eab-4942-8939-74cd38c76c11" />
