@@ -268,7 +268,7 @@ Clear the cache and Resumed from checkpoint for 50 more steps:
       
       step 5001 | loss 1.9662 | lr 0.000030 | tok/s    301.9
       
-      Saved checkpoint: checkpoint_step_5000.pt
+      Saved checkpoint: checkpoint_step_5001.pt
       step 5005 | loss 1.7517 | lr 0.000030 | tok/s   2142.9
       step 5010 | loss 1.6168 | lr 0.000030 | tok/s   2150.3
       step 5015 | loss 1.7878 | lr 0.000030 | tok/s   2114.4
